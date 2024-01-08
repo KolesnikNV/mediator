@@ -44,6 +44,21 @@ class Aircraft:
         """Changing aircraft garage status"""
         self._is_moved_to_garage = True
 
+    @abc.abstractmethod
+    def display_no_seats_message(self) -> None:
+        """Displays a message indicating that the aircraft has no available seats for landing."""
+        pass
+
+    @abc.abstractmethod
+    def display_aircraft_parked_message(self, garage_number) -> None:
+        """Displays a message indicating that the aircraft has been successfully parked in a garage."""
+        pass
+
+    @abc.abstractmethod
+    def display_aircraft_landing_message(self, airstrip_number) -> None:
+        """Displays a message indicating that the aircraft is landing on a specific airstrip."""
+        pass
+
 
 class Airplane(Aircraft):
     """
@@ -57,6 +72,42 @@ class Airplane(Aircraft):
         is_moved_to_garage: bool = False,
     ):
         super().__init__(registration_number, is_landed, is_moved_to_garage)
+
+    def display_no_seats_message(self) -> None:
+        print(f"Самолету {self._registration_number} некуда сесть.")
+
+    def display_aircraft_parked_message(self, garage_number) -> None:
+        print(f"Самолет {self._registration_number} помещен в гараж {garage_number}")
+
+    def display_aircraft_landing_message(self, airstrip_number) -> None:
+        print(
+            f"Самолет {self._registration_number} садится на полосу {airstrip_number}"
+        )
+
+
+class Helicopter(Aircraft):
+    """
+    Class for airplane
+    """
+
+    def __init__(
+        self,
+        registration_number: str,
+        is_landed: bool = False,
+        is_moved_to_garage: bool = False,
+    ):
+        super().__init__(registration_number, is_landed, is_moved_to_garage)
+
+    def display_no_seats_message(self) -> None:
+        print(f"Вертолету {self._registration_number} некуда сесть.")
+
+    def display_aircraft_parked_message(self, garage_number) -> None:
+        print(f"Вертолет {self._registration_number} помещен в гараж {garage_number}")
+
+    def display_aircraft_landing_message(self, airstrip_number) -> None:
+        print(
+            f"Вертолет {self._registration_number} садится на полосу {airstrip_number}"
+        )
 
 
 class Airstrip:
@@ -132,9 +183,7 @@ class Mediator:
         for airstrip in self._airstrips:
             if airstrip.get_aircraft() is not None:
                 continue
-            print(
-                f"Самолет {aircraft.get_registration_number()} садится на полосу №{airstrip.get_line_number()}"
-            )
+            aircraft.display_aircraft_landing_message(airstrip.get_line_number())
             airstrip.set_aircraft(aircraft)
             aircraft.landed()
             return True
@@ -146,13 +195,11 @@ class Mediator:
             current_garage = min(
                 self._garages, key=lambda garage: len(garage.get_placed_aircrafts())
             )
-            print(
-                f"Самолет {landed_aircraft.get_registration_number()} помещен в гараж №{current_garage.get_number()}"
-            )
+            landed_aircraft.display_aircraft_parked_message(current_garage.get_number())
             current_garage.place(landed_aircraft)
             airstrip.unset_aircraft()
         else:
-            print(f"Самолету {landed_aircraft.get_registration_number()} некуда сесть.")
+            landed_aircraft.display_no_seats_message()
 
     def run_traffic_control(self, aircrafts: list[Aircraft]) -> None:
         while any(not aircraft.is_moved_to_garage() for aircraft in aircrafts):
@@ -166,13 +213,16 @@ class Mediator:
                     self.request_land(aircraft)
 
 
-AIRCRAFT_COUNT = 100
+AIRCRAFT_COUNT = 50
+HELICOPTER_COUNT = 50
 AIRSTRIP_COUNT = 9
 GARAGE_COUNT = 6
 
-airplane_in_air = [
-    Airplane("blue_airlines_" + uuid4().hex) for _ in range(AIRCRAFT_COUNT)
+airplane_in_air = [Airplane("airplane_" + uuid4().hex) for _ in range(AIRCRAFT_COUNT)]
+helicopter_in_air = [
+    Helicopter("helicopter_" + uuid4().hex) for _ in range(HELICOPTER_COUNT)
 ]
+
 airstrips = [Airstrip(i + 1, mediator=None) for i in range(AIRSTRIP_COUNT)]
 garages = [Garage(i + 1, mediator=None) for i in range(GARAGE_COUNT)]
 
@@ -181,7 +231,12 @@ mediator = Mediator(airstrips, garages)
 for aircraft in airplane_in_air:
     mediator.request_land(aircraft)
 
+for helicopter in helicopter_in_air:
+    mediator.request_land(helicopter)
+
+mediator.run_traffic_control(helicopter_in_air)
 mediator.run_traffic_control(airplane_in_air)
+
 
 for garage in garages:
     print(
