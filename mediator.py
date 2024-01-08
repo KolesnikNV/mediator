@@ -5,14 +5,14 @@ Python 3.10.4
 pylint code rate 9.25/10
 """
 from __future__ import annotations
+
+import abc
 from uuid import uuid4
 from random import randint
 
 
 class Aircraft:
-    """
-    Class for aircraft
-    """
+    """The parent class for all flying objects"""
 
     def __init__(
         self,
@@ -43,6 +43,20 @@ class Aircraft:
     def move_to_garage(self) -> None:
         """Changing aircraft garage status"""
         self._is_moved_to_garage = True
+
+
+class Airplane(Aircraft):
+    """
+    Class for airplane
+    """
+
+    def __init__(
+        self,
+        registration_number: str,
+        is_landed: bool = False,
+        is_moved_to_garage: bool = False,
+    ):
+        super().__init__(registration_number, is_landed, is_moved_to_garage)
 
 
 class Airstrip:
@@ -156,18 +170,18 @@ AIRCRAFT_COUNT = 100
 AIRSTRIP_COUNT = 9
 GARAGE_COUNT = 6
 
-aircrafts_in_air = [
-    Aircraft("blue_airlines_" + uuid4().hex) for _ in range(AIRCRAFT_COUNT)
+airplane_in_air = [
+    Airplane("blue_airlines_" + uuid4().hex) for _ in range(AIRCRAFT_COUNT)
 ]
 airstrips = [Airstrip(i + 1, mediator=None) for i in range(AIRSTRIP_COUNT)]
 garages = [Garage(i + 1, mediator=None) for i in range(GARAGE_COUNT)]
 
 mediator = Mediator(airstrips, garages)
 
-for aircraft in aircrafts_in_air:
+for aircraft in airplane_in_air:
     mediator.request_land(aircraft)
 
-mediator.run_traffic_control(aircrafts_in_air)
+mediator.run_traffic_control(airplane_in_air)
 
 for garage in garages:
     print(
