@@ -124,15 +124,19 @@ class Airstrip:
         self._mediator = mediator
 
     def get_line_number(self) -> int:
+        """Getting airstrip number"""
         return self._line_number
 
     def get_aircraft(self) -> Aircraft | None:
+        """Getting aircraft that placed on this airstrip"""
         return self._aircraft
 
     def set_aircraft(self, aircraft: Aircraft) -> None:
+        """Setting aircraft for placing on this airstrip"""
         self._aircraft = aircraft
 
     def unset_aircraft(self) -> None:
+        """Unsetting aircraft for placing on this airstrip"""
         self._aircraft = None
         if isinstance(self._mediator, Mediator):
             self._mediator.notify(self, "unset_aircraft")
@@ -152,9 +156,11 @@ class Garage:
         self._mediator = mediator
 
     def get_number(self) -> int:
+        """Getting garage number"""
         return self._number
 
     def place(self, aircraft: Aircraft) -> bool:
+        """Getting garage number"""
         if aircraft.is_landed() is False:
             return False
 
@@ -165,6 +171,7 @@ class Garage:
         return True
 
     def get_placed_aircrafts(self) -> list[Aircraft]:
+        """Placing aircraft inside garage"""
         return self._aircrafts
 
 
