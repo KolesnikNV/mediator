@@ -1,12 +1,7 @@
-"""
-Module for Mediator pattern study
-
-Python 3.10.4
-pylint code rate 9.25/10
-"""
 from __future__ import annotations
 
 import abc
+from typing import List, Union
 from uuid import uuid4
 from random import randint
 
@@ -23,6 +18,10 @@ class Aircraft:
         self._registration_number = registration_number
         self._is_landed = is_landed
         self._is_moved_to_garage = is_moved_to_garage
+        self._mediator = None
+
+    def set_mediator(self, mediator: Mediator) -> None:
+        self._mediator = mediator
 
     def get_registration_number(self) -> str:
         """Getting aircraft registration number"""
@@ -44,6 +43,11 @@ class Aircraft:
         """Changing aircraft garage status"""
         self._is_moved_to_garage = True
 
+    def notify(self, event: str) -> None:
+        """Notify mediator about some event"""
+        if isinstance(self._mediator, Mediator):
+            self._mediator.notify(self, event)
+
     @abc.abstractmethod
     def display_no_seats_message(self) -> None:
         """Displays a message indicating that the aircraft has no available seats for landing."""
@@ -61,9 +65,7 @@ class Aircraft:
 
 
 class Airplane(Aircraft):
-    """
-    Class for airplane
-    """
+    """Class for airplane"""
 
     def __init__(
         self,
@@ -86,9 +88,7 @@ class Airplane(Aircraft):
 
 
 class Helicopter(Aircraft):
-    """
-    Class for airplane
-    """
+    """Class for helicopter"""
 
     def __init__(
         self,
@@ -111,10 +111,6 @@ class Helicopter(Aircraft):
 
 
 class Airstrip:
-    """
-    Class for airstrip
-    """
-
     def __init__(
         self,
         line_number: int,
@@ -124,28 +120,25 @@ class Airstrip:
         self._mediator = mediator
         self._aircraft = None
 
+    def set_mediator(self, mediator: Mediator) -> None:
+        self._mediator = mediator
+
     def get_line_number(self) -> int:
-        """Getting airstrip number"""
         return self._line_number
 
     def get_aircraft(self) -> Aircraft | None:
-        """Getting aircraft that placed on this airstrip"""
         return self._aircraft
 
     def set_aircraft(self, aircraft: Aircraft) -> None:
-        """Setting aircraft for placing on this airstrip"""
         self._aircraft = aircraft
 
     def unset_aircraft(self) -> None:
-        """Unsetting aircraft for placing on this airstrip"""
         self._aircraft = None
+        if isinstance(self._mediator, Mediator):
+            self._mediator.notify(self, "unset_aircraft")
 
 
 class Garage:
-    """
-    Class for garage
-    """
-
     def __init__(
         self,
         number: int,
@@ -155,41 +148,65 @@ class Garage:
         self._mediator = mediator
         self._aircrafts = []
 
+    def set_mediator(self, mediator: Mediator) -> None:
+        self._mediator = mediator
+
     def get_number(self) -> int:
-        """Getting garage number"""
         return self._number
 
     def place(self, aircraft: Aircraft) -> bool:
-        """Placing aircraft inside garage"""
         if aircraft.is_landed() is False:
             return False
 
         aircraft.move_to_garage()
         self._aircrafts.append(aircraft)
-
+        if isinstance(self._mediator, Mediator):
+            self._mediator.notify(self, "placed_aircraft")
         return True
 
     def get_placed_aircrafts(self) -> list[Aircraft]:
-        """Gettiong aircrafts placed inside garage"""
         return self._aircrafts
 
 
 class Mediator:
-    def __init__(self, airstrips: list[Airstrip], garages: list[Garage]):
+    def __init__(self, airstrips: List[Airstrip], garages: List[Garage]):
         self._airstrips = airstrips
         self._garages = garages
 
+    @staticmethod
+    def display_free_airstrip(line_number):
+        """Display mediator's message"""
+        print(f"Медиатор: Полоса {line_number} освобождена.")
+
+    @staticmethod
+    def notify(sender: Union[Aircraft, Airstrip, Garage], event: str) -> None:
+        """Notify method"""
+        if isinstance(sender, Aircraft) and event == "landed":
+            sender.display_aircraft_landing_message(sender.get_line_number())
+        elif isinstance(sender, Aircraft) and event == "moved_to_garage":
+            sender.display_aircraft_parked_message(sender.get_number())
+        elif isinstance(sender, Airstrip) and event == "unset_aircraft":
+            Mediator.display_free_airstrip(sender.get_line_number())
+
+    def set_mediator_for_components(self) -> None:
+        """Set mediator for each Aircraft"""
+        for airstrip in self._airstrips + self._garages:
+            airstrip.set_mediator(self)
+
     def request_land(self, aircraft: Aircraft) -> bool:
+        """Request land for each Aircraft"""
         for airstrip in self._airstrips:
             if airstrip.get_aircraft() is not None:
                 continue
             aircraft.display_aircraft_landing_message(airstrip.get_line_number())
             airstrip.set_aircraft(aircraft)
             aircraft.landed()
+            aircraft.notify("landed")
             return True
         return False
 
     def request_move_to_garage(self, airstrip: Airstrip) -> None:
+        """Request move to garage each Aircraft"""
         landed_aircraft = airstrip.get_aircraft()
         if landed_aircraft and randint(0, 9) == 0:
             current_garage = min(
@@ -202,6 +219,7 @@ class Mediator:
             landed_aircraft.display_no_seats_message()
 
     def run_traffic_control(self, aircrafts: list[Aircraft]) -> None:
+        """Start mediator's work"""
         while any(not aircraft.is_moved_to_garage() for aircraft in aircrafts):
             for airstrip in self._airstrips:
                 landed_aircraft = airstrip.get_aircraft()
@@ -213,32 +231,43 @@ class Mediator:
                     self.request_land(aircraft)
 
 
-AIRCRAFT_COUNT = 50
+def initialize_airport(airplane_count, helicopter_count, airstrip_count, garage_count):
+    """Setup airport's unit"""
+    airplane_in_air = [
+        Airplane("airplane_" + uuid4().hex) for _ in range(airplane_count)
+    ]
+    helicopter_in_air = [
+        Helicopter("helicopter_" + uuid4().hex) for _ in range(helicopter_count)
+    ]
+    airstrips = [Airstrip(i + 1) for i in range(airstrip_count)]
+    garages = [Garage(i + 1) for i in range(garage_count)]
+    mediator = Mediator(airstrips, garages)
+    mediator.set_mediator_for_components()
+
+    for aircraft in airplane_in_air:
+        mediator.request_land(aircraft)
+
+    for helicopter in helicopter_in_air:
+        mediator.request_land(helicopter)
+
+    mediator.run_traffic_control(helicopter_in_air)
+    mediator.run_traffic_control(airplane_in_air)
+
+    for garage in garages:
+        print(
+            f"В гараже №{garage.get_number()} летательных аппаратов: {len(garage.get_placed_aircrafts())}"
+        )
+
+
+AIRCRAFT_COUNT = 100
 HELICOPTER_COUNT = 50
 AIRSTRIP_COUNT = 9
-GARAGE_COUNT = 6
-
-airplane_in_air = [Airplane("airplane_" + uuid4().hex) for _ in range(AIRCRAFT_COUNT)]
-helicopter_in_air = [
-    Helicopter("helicopter_" + uuid4().hex) for _ in range(HELICOPTER_COUNT)
-]
-
-airstrips = [Airstrip(i + 1, mediator=None) for i in range(AIRSTRIP_COUNT)]
-garages = [Garage(i + 1, mediator=None) for i in range(GARAGE_COUNT)]
-
-mediator = Mediator(airstrips, garages)
-
-for aircraft in airplane_in_air:
-    mediator.request_land(aircraft)
-
-for helicopter in helicopter_in_air:
-    mediator.request_land(helicopter)
-
-mediator.run_traffic_control(helicopter_in_air)
-mediator.run_traffic_control(airplane_in_air)
+GARAGE_COUNT = 10
 
 
-for garage in garages:
-    print(
-        f"В гараже №{garage.get_number()} самолётов: {len(garage.get_placed_aircrafts())}"
-    )
+def main():
+    initialize_airport(AIRCRAFT_COUNT, HELICOPTER_COUNT, AIRSTRIP_COUNT, GARAGE_COUNT)
+
+
+if __name__ == "__main__":
+    main()
